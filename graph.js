@@ -5,9 +5,6 @@
   const NODE_R_TANGENT = 10;
   const ROW_H = 70;
   const COL_W = 110;
-  const PAD_TOP = 50;
-  const PAD_BOTTOM = 50;
-  const PAD_X = 60;
 
   const state = {
     nodeStates: {},
@@ -42,7 +39,6 @@
     if (s === 'destructively_pruned') return state.showPruned;
     return true;
   }
-
   function isActive(id) { return state.nodeStates[id] === 'active'; }
 
   function computeBranchColumns() {
@@ -74,9 +70,12 @@
   }
 
   const branchCols = computeBranchColumns();
+  // Layout in graph-space (zoom/pan handles screen mapping)
   session.nodes.forEach((n, i) => {
     n._row = i;
     n._col = branchCols[n.branch];
+    n._x = n._col * COL_W;
+    n._y = n._row * ROW_H;
   });
 
   function computeSecondaryEdges() {
@@ -96,7 +95,6 @@
     }
     return edges;
   }
-
   const secondaryEdges = computeSecondaryEdges();
 
   document.getElementById('objective-text').textContent = session.objective;
@@ -141,26 +139,64 @@
     const avg = activeNodes.length
       ? activeNodes.reduce((s, n) => s + n.relevance, 0) / activeNodes.length
       : 0;
-    const pct = Math.round(avg * 100);
-    document.getElementById('score-value').textContent = pct + '%';
-    document.getElementById('score-bar-fill').style.width = pct + '%';
+    const rot = Math.round((1 - avg) * 100);
+    const level = rot < 25 ? 'low' : rot < 55 ? 'mid' : 'high';
+    const valueEl = document.getElementById('rotten-value');
+    const fillEl = document.getElementById('rotten-bar-fill');
+    valueEl.textContent = rot + '%';
+    valueEl.dataset.level = level;
+    fillEl.style.width = rot + '%';
+    fillEl.dataset.level = level;
   }
 
+  // ============ SVG / Zoom ============
   const svg = d3.select('#graph-svg');
-  let gPrimary, gSecondary, gNodes;
+  let zoomLayer, gPrimary, gSecondary, gNodes;
+  let zoom;
 
   function initSvg() {
     svg.selectAll('*').remove();
-    gSecondary = svg.append('g').attr('class', 'edges-secondary');
-    gPrimary = svg.append('g').attr('class', 'edges-primary');
-    gNodes = svg.append('g').attr('class', 'nodes');
+    zoomLayer = svg.append('g').attr('class', 'zoom-layer');
+    gSecondary = zoomLayer.append('g').attr('class', 'edges-secondary');
+    gPrimary = zoomLayer.append('g').attr('class', 'edges-primary');
+    gNodes = zoomLayer.append('g').attr('class', 'nodes');
+
+    zoom = d3.zoom()
+      .scaleExtent([0.3, 3])
+      .filter(event => !event.button && event.type !== 'dblclick')
+      .on('zoom', event => zoomLayer.attr('transform', event.transform));
+    svg.call(zoom).on('dblclick.zoom', null);
+  }
+
+  function resizeSvg() {
+    const wrapper = document.getElementById('canvas-wrapper');
+    svg.attr('width', wrapper.clientWidth).attr('height', wrapper.clientHeight);
+  }
+
+  function fitToContent(animate) {
+    const wrapper = document.getElementById('canvas-wrapper');
+    const w = wrapper.clientWidth;
+    const h = wrapper.clientHeight;
+    if (!w || !h) return;
+    const padding = 60;
+    const xs = session.nodes.map(n => n._x);
+    const ys = session.nodes.map(n => n._y);
+    const minX = Math.min.apply(null, xs) - padding;
+    const maxX = Math.max.apply(null, xs) + padding;
+    const minY = Math.min.apply(null, ys) - padding;
+    const maxY = Math.max.apply(null, ys) + padding;
+    const scale = Math.min(w / (maxX - minX), h / (maxY - minY), 1.5);
+    const tx = w / 2 - (minX + maxX) / 2 * scale;
+    const ty = h / 2 - (minY + maxY) / 2 * scale;
+    const t = d3.zoomIdentity.translate(tx, ty).scale(scale);
+    if (animate) svg.transition().duration(450).call(zoom.transform, t);
+    else svg.call(zoom.transform, t);
   }
 
   function primaryPathD(s, t) {
     if (s._x === t._x) return `M${s._x},${s._y} L${t._x},${t._y}`;
     return `M${s._x},${s._y} C${s._x},${(s._y + t._y) / 2} ${t._x},${(s._y + t._y) / 2} ${t._x},${t._y}`;
   }
-
   function secondaryPathD(e) {
     const s = e.source, t = e.target;
     const dx = t._x - s._x, dy = t._y - s._y;
@@ -172,27 +208,7 @@
     return `M${s._x},${s._y} Q${midX},${midY} ${t._x},${t._y}`;
   }
 
-  function computeLayout() {
-    const wrapper = document.getElementById('canvas-wrapper');
-    const colsArr = Object.values(branchCols);
-    const colMin = Math.min(...colsArr);
-    const colMax = Math.max(...colsArr);
-    const colMid = (colMin + colMax) / 2;
-    const minLayoutW = (colMax - colMin) * COL_W + 2 * PAD_X;
-    const w = Math.max(wrapper.clientWidth, minLayoutW);
-    const centerX = w / 2 - colMid * COL_W;
-    const totalH = PAD_TOP + ROW_H * (session.nodes.length - 1) + PAD_BOTTOM;
-    session.nodes.forEach(n => {
-      n._x = centerX + n._col * COL_W;
-      n._y = PAD_TOP + n._row * ROW_H;
-    });
-    return { width: w, height: Math.max(wrapper.clientHeight, totalH) };
-  }
-
   function render() {
-    const { width, height } = computeLayout();
-    svg.attr('width', width).attr('height', height);
-
     const primaryData = session.nodes
       .filter(n => n.parent_id)
       .map(n => ({ source: nodeById[n.parent_id], target: n, id: n.parent_id + '->' + n.id }))
@@ -226,6 +242,7 @@
     const nEnter = nSel.enter().append('g');
     nEnter.append('circle').attr('class', 'node-circle');
     nEnter.append('text').attr('class', 'node-label');
+    nEnter.append('text').attr('class', 'oos-badge').text('OUT OF SCOPE');
 
     const nMerge = nEnter.merge(nSel);
     nMerge.attr('transform', d => `translate(${d._x},${d._y})`);
@@ -252,15 +269,29 @@
       .attr('text-anchor', 'middle')
       .text(d => d.id);
 
+    nMerge.select('.oos-badge')
+      .attr('y', d => -(d.is_main_path ? NODE_R_MAIN : NODE_R_TANGENT) - 6)
+      .attr('text-anchor', 'middle')
+      .style('display', d => state.nodeStates[d.id] === 'soft_pruned' ? null : 'none');
+
     nMerge
-      .on('mouseenter', (ev, d) => showTooltip(ev, d))
+      .on('mouseenter', (ev, d) => { showTooltip(ev, d); highlightSubtree(d.id); })
       .on('mousemove', moveTooltip)
-      .on('mouseleave', hideTooltip)
+      .on('mouseleave', () => { hideTooltip(); clearHighlight(); })
       .on('click', (ev, d) => { ev.stopPropagation(); selectNode(d.id); });
   }
 
-  const tooltip = document.getElementById('tooltip');
+  function highlightSubtree(rootId) {
+    const ids = new Set(getDescendants(rootId));
+    gNodes.selectAll('g.node-group').classed('subtree-hover', d => ids.has(d.id));
+    gPrimary.selectAll('path').classed('subtree-hover', d => ids.has(d.source.id) && ids.has(d.target.id));
+  }
+  function clearHighlight() {
+    gNodes.selectAll('g.node-group.subtree-hover').classed('subtree-hover', false);
+    gPrimary.selectAll('path.subtree-hover').classed('subtree-hover', false);
+  }
 
+  const tooltip = document.getElementById('tooltip');
   function showTooltip(ev, d) {
     const cfg = session.tags[d.tag];
     const txt = d.content_user.length > 90 ? d.content_user.slice(0, 90) + '…' : d.content_user;
@@ -268,7 +299,6 @@
     tooltip.classList.remove('hidden');
     moveTooltip(ev);
   }
-
   function moveTooltip(ev) {
     const wrapper = document.getElementById('canvas-wrapper');
     const rect = wrapper.getBoundingClientRect();
@@ -278,11 +308,9 @@
     tooltip.style.left = x + 'px';
     tooltip.style.top = y + 'px';
   }
-
   function hideTooltip() { tooltip.classList.add('hidden'); }
 
   function selectNode(id) { state.selectedId = id; renderDetail(); render(); }
-
   function deselect() {
     state.selectedId = null;
     document.getElementById('panel-default').classList.remove('hidden');
@@ -295,24 +323,20 @@
     if (!n) return deselect();
     document.getElementById('panel-default').classList.add('hidden');
     document.getElementById('panel-detail').classList.remove('hidden');
-
     const cfg = session.tags[n.tag];
     const tagBadge = document.getElementById('detail-tag');
     tagBadge.textContent = cfg.label || n.tag;
     tagBadge.style.background = cfg.color + '33';
     tagBadge.style.color = cfg.color;
     tagBadge.style.borderLeft = `3px solid ${cfg.color}`;
-
     document.getElementById('detail-branch').textContent =
       `branch: ${n.branch}${n.is_main_path ? ' · main path' : ''} · ${n.id}`;
     document.getElementById('detail-relevance-num').textContent = Math.round(n.relevance * 100) + '%';
     document.getElementById('detail-relevance-fill').style.width = (n.relevance * 100) + '%';
     document.getElementById('detail-user').textContent = n.content_user;
     document.getElementById('detail-assistant').textContent = n.content_assistant;
-
     const descendants = getDescendants(n.id);
     document.getElementById('detail-affected').textContent = descendants.length;
-
     const cur = state.nodeStates[n.id];
     document.getElementById('btn-prune-destructive').disabled = cur === 'destructively_pruned';
     document.getElementById('btn-prune-soft').disabled = cur === 'soft_pruned';
@@ -322,10 +346,7 @@
   function applyPruning(rootId, newState) {
     const ids = getDescendants(rootId);
     ids.forEach(id => state.nodeStates[id] = newState);
-    updateStats();
-    updateScore();
-    renderDetail();
-    render();
+    updateStats(); updateScore(); renderDetail(); render();
   }
 
   document.getElementById('btn-prune-destructive').addEventListener('click', () => {
@@ -337,17 +358,20 @@
   document.getElementById('btn-restore').addEventListener('click', () => {
     if (state.selectedId) applyPruning(state.selectedId, 'active');
   });
-  document.getElementById('toggle-show-pruned').addEventListener('change', (e) => {
+  document.getElementById('toggle-show-pruned').addEventListener('change', e => {
     state.showPruned = e.target.checked;
     render();
   });
+  document.getElementById('btn-fit-view').addEventListener('click', () => fitToContent(true));
 
-  svg.on('click', deselect);
-  window.addEventListener('resize', render);
+  svg.on('click', function (event) { if (event.target === svg.node()) deselect(); });
+  window.addEventListener('resize', () => resizeSvg());
 
   initSvg();
+  resizeSvg();
   renderLegend();
   updateStats();
   updateScore();
   render();
+  requestAnimationFrame(() => fitToContent(false));
 })();

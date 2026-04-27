@@ -86,6 +86,35 @@ body { display: flex; flex-direction: column; }
 
 .toggle input { accent-color: var(--accent); }
 
+.btn-icon {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  color: var(--fg-1);
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+.btn-icon:hover { background: var(--bg-3); color: var(--fg-0); border-color: var(--accent); }
+
+.rotten-bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 2px;
+  transition: width 0.4s ease, background 0.3s ease;
+}
+.rotten-bar-fill[data-level="low"]  { background: linear-gradient(90deg, var(--success), #b3d96a); }
+.rotten-bar-fill[data-level="mid"]  { background: linear-gradient(90deg, #b3d96a, var(--warning)); }
+.rotten-bar-fill[data-level="high"] {
+  background: linear-gradient(90deg, var(--warning), var(--danger));
+  box-shadow: 0 0 8px rgba(247, 118, 142, 0.4);
+}
+.score-value[data-level="high"] { color: var(--danger); }
+.score-value[data-level="mid"]  { color: var(--warning); }
+
 /* ===== Main layout ===== */
 #app-main { flex: 1; display: flex; min-height: 0; }
 
@@ -96,8 +125,10 @@ body { display: flex; flex-direction: column; }
     radial-gradient(circle at 20% 20%, rgba(122, 162, 247, 0.04) 0%, transparent 50%),
     radial-gradient(circle at 80% 80%, rgba(187, 154, 247, 0.04) 0%, transparent 50%),
     var(--bg-0);
-  overflow: auto;
+  overflow: hidden;
+  cursor: grab;
 }
+#canvas-wrapper:active { cursor: grabbing; }
 
 #graph-svg { display: block; }
 
@@ -282,3 +313,22 @@ body { display: flex; flex-direction: column; }
 .edge-secondary:hover { opacity: 1; stroke-width: 1.5; }
 
 .node-label { fill: var(--fg-2); font-size: 10px; pointer-events: none; user-select: none; font-family: inherit; }
+
+.oos-badge {
+  fill: var(--warning);
+  font-size: 7.5px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  pointer-events: none;
+  user-select: none;
+  font-family: inherit;
+}
+
+/* Hover preview of what would be pruned (root + descendants) */
+.node-group.subtree-hover .node-circle {
+  filter: drop-shadow(0 0 6px rgba(247, 118, 142, 0.6));
+  stroke: var(--danger);
+  stroke-width: 2.5;
+}
+.node-group.subtree-hover .node-label { fill: var(--fg-0); }
+.edge-primary.subtree-hover { stroke: var(--danger); stroke-width: 2; opacity: 1; }
