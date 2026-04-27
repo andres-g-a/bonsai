@@ -624,6 +624,21 @@ window.GRAPH = (function () {
   render();
   requestAnimationFrame(() => fitToContent(false));
 
+  // Demo URL hashes — used to capture reproducible screenshots for docs.
+  // #demo-prune=<id> applies destructive pruning to that node's subtree.
+  // #demo-hover=<id> simulates a hover-highlight on that node's subtree.
+  const hash = (location.hash || '').slice(1);
+  if (hash.startsWith('demo-prune=')) {
+    const id = hash.split('=')[1];
+    setTimeout(() => { applyPruning(id, 'destructively_pruned'); fitToContent(false); }, 200);
+  } else if (hash.startsWith('demo-hover=')) {
+    const id = hash.split('=')[1];
+    setTimeout(() => {
+      const g = gNodes.selectAll('g.node-group').filter(d => d.id === id).node();
+      if (g) g.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    }, 400);
+  }
+
   return {
     addTurn,
     startNewSession,
