@@ -230,3 +230,6 @@ config.js
 
 # Local credentials — copy config.example.js to config.js and add your API key
 config.js
+
+# Research / exploration reports (local notes, not part of the prototype)
+reports/

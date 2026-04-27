@@ -137,4 +137,14 @@
     status.textContent = 'No API key. Click ⚙ to add one (free at aistudio.google.com), or just explore the demo graph.';
     status.className = 'info';
   }
+
+  // ============ Demo URL hashes (for reproducible doc screenshots) ============
+  // #demo-modal=settings    opens the Settings modal on load.
+  // #demo-modal=newsession  opens the New session modal on load.
+  const _hash = (location.hash || '').slice(1);
+  if (_hash === 'demo-modal=settings') {
+    setTimeout(() => openSettings(), 150);
+  } else if (_hash === 'demo-modal=newsession') {
+    setTimeout(() => openNewSession(), 150);
+  }
 })();

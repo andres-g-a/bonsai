@@ -626,11 +626,15 @@ window.GRAPH = (function () {
 
   // Demo URL hashes — used to capture reproducible screenshots for docs.
   // #demo-prune=<id> applies destructive pruning to that node's subtree.
+  // #demo-soft=<id>  applies soft pruning (out-of-scope) to that node's subtree.
   // #demo-hover=<id> simulates a hover-highlight on that node's subtree.
   const hash = (location.hash || '').slice(1);
   if (hash.startsWith('demo-prune=')) {
     const id = hash.split('=')[1];
     setTimeout(() => { applyPruning(id, 'destructively_pruned'); fitToContent(false); }, 200);
+  } else if (hash.startsWith('demo-soft=')) {
+    const id = hash.split('=')[1];
+    setTimeout(() => { applyPruning(id, 'soft_pruned'); selectNode(id); }, 200);
   } else if (hash.startsWith('demo-hover=')) {
     const id = hash.split('=')[1];
     setTimeout(() => {
