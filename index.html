@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bonsai — LLM Context Manager (Prototype)</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header id="app-header">
+    <div class="header-left">
+      <div class="header-label">OBJETIVO</div>
+      <div class="header-objective" id="objective-text">—</div>
+    </div>
+    <div class="header-right">
+      <div class="score-block">
+        <div class="header-label">CONTEXT RELEVANCE</div>
+        <div class="score-value" id="score-value">—</div>
+        <div class="score-bar"><div class="score-bar-fill" id="score-bar-fill"></div></div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-show-pruned">
+        <span>Show pruned (ghosts)</span>
+      </label>
+    </div>
+  </header>
+
+  <main id="app-main">
+    <section id="canvas-wrapper">
+      <svg id="graph-svg"></svg>
+      <div id="tooltip" class="tooltip hidden"></div>
+    </section>
+
+    <aside id="side-panel">
+      <div id="panel-default">
+        <h2>Leyenda</h2>
+        <ul class="legend" id="legend-list"></ul>
+        <h2>Estadísticas</h2>
+        <ul class="stats">
+          <li><span>Total nodos</span><span id="stat-total">0</span></li>
+          <li><span>Activos</span><span id="stat-active">0</span></li>
+          <li><span>Soft pruned</span><span id="stat-soft">0</span></li>
+          <li><span>Destructive pruned</span><span id="stat-destructive">0</span></li>
+        </ul>
+        <p class="hint">Click un nodo para ver detalle y opciones de pruning.</p>
+      </div>
+
+      <div id="panel-detail" class="hidden">
+        <div class="detail-header">
+          <span class="tag-badge" id="detail-tag">—</span>
+          <span class="branch-label" id="detail-branch">—</span>
+        </div>
+        <div class="detail-relevance">
+          <span class="header-label">Relevancia al objetivo</span>
+          <div class="score-bar"><div class="score-bar-fill" id="detail-relevance-fill"></div></div>
+          <span id="detail-relevance-num">—</span>
+        </div>
+        <div class="detail-message">
+          <div class="msg-label">USER</div>
+          <div class="msg-content" id="detail-user">—</div>
+        </div>
+        <div class="detail-message">
+          <div class="msg-label">ASSISTANT</div>
+          <div class="msg-content" id="detail-assistant">—</div>
+        </div>
+        <div class="detail-actions">
+          <div class="affected-line">Esto afectará <strong id="detail-affected">0</strong> nodos.</div>
+          <button class="btn btn-destructive" id="btn-prune-destructive">Prune subtree (destructive)</button>
+          <button class="btn btn-soft" id="btn-prune-soft">Mark out-of-scope (soft)</button>
+          <button class="btn btn-restore" id="btn-restore">Restore</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="mockdata.js"></script>
+  <script src="graph.js"></script>
+</body>
+</html>

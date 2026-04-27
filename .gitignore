@@ -216,3 +216,17 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local LLM credentials (do NOT commit)
+config.js
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Claude Code per-project config
+.claude/
+
+# Local credentials — copy config.example.js to config.js and add your API key
+config.js
